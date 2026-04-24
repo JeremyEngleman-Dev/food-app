@@ -1,4 +1,4 @@
-package http
+package ingredients
 
 import (
 	"encoding/json"
@@ -6,10 +6,15 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-
-	"Feastio/internal/dto"
-	"Feastio/internal/service"
 )
+
+type Handler struct {
+	service *Service
+}
+
+func NewHandler(service *Service) *Handler {
+	return &Handler{service: service}
+}
 
 // Handlers
 func (h *Handler) CreateIngredient(w http.ResponseWriter, r *http.Request) {
@@ -17,7 +22,7 @@ func (h *Handler) CreateIngredient(w http.ResponseWriter, r *http.Request) {
 
 	defer r.Body.Close()
 
-	var request dto.CreateIngredient
+	var request CreateIngredient
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
@@ -46,7 +51,7 @@ func (h *Handler) GetIngredient(w http.ResponseWriter, r *http.Request) {
 
 	ingredient, err := h.service.GetIngredient(ctx, id)
 	if err != nil {
-		if errors.Is(err, service.ErrIngredientNotFound) {
+		if errors.Is(err, ErrIngredientNotFound) {
 			http.Error(w, "Ingredient not found", http.StatusNotFound)
 			return
 		}
@@ -83,7 +88,7 @@ func (h *Handler) DeleteIngredient(w http.ResponseWriter, r *http.Request) {
 
 	err = h.service.DeleteIngredient(ctx, id)
 	if err != nil {
-		if errors.Is(err, service.ErrIngredientNotFound) {
+		if errors.Is(err, ErrIngredientNotFound) {
 			http.Error(w, "Ingredient id not found", http.StatusNotFound)
 			return
 		}

@@ -1,13 +1,19 @@
-package repository
+package ingredients
 
 import (
 	"context"
 	"database/sql"
 	"errors"
 	"time"
-
-	"Feastio/internal/model"
 )
+
+type Repository struct {
+	db *sql.DB
+}
+
+func NewRepository(db *sql.DB) *Repository {
+	return &Repository{db: db}
+}
 
 // Database Queries
 var (
@@ -23,16 +29,10 @@ var (
 	deleteIngredient = `DELETE FROM ingredients WHERE id = $1`
 )
 
-// Error Definitions
-var (
-	ErrIngredientNotFound      = errors.New("Ingredient not found")
-	ErrIngredientAlreadyExists = errors.New("Ingredient already exists")
-)
-
 // Repository Functions
-func (r *Repository) CreateIngredient(ctx context.Context, i model.Ingredient) (model.Ingredient, error) {
+func (r *Repository) CreateIngredient(ctx context.Context, i Ingredient) (Ingredient, error) {
 	var now = time.Now().UTC()
-	var ingredient model.Ingredient
+	var ingredient Ingredient
 
 	err := r.db.QueryRowContext(
 		ctx,
@@ -58,16 +58,16 @@ func (r *Repository) CreateIngredient(ctx context.Context, i model.Ingredient) (
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return model.Ingredient{}, ErrIngredientNotFound
+			return Ingredient{}, ErrIngredientNotFound
 		}
-		return model.Ingredient{}, err
+		return Ingredient{}, err
 	}
 
 	return ingredient, nil
 }
 
-func (r *Repository) GetIngredient(ctx context.Context, id int64) (model.Ingredient, error) {
-	var ingredient model.Ingredient
+func (r *Repository) GetIngredient(ctx context.Context, id int64) (Ingredient, error) {
+	var ingredient Ingredient
 
 	err := r.db.QueryRowContext(
 		ctx,
@@ -87,15 +87,15 @@ func (r *Repository) GetIngredient(ctx context.Context, id int64) (model.Ingredi
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return model.Ingredient{}, ErrIngredientNotFound
+			return Ingredient{}, ErrIngredientNotFound
 		}
-		return model.Ingredient{}, err
+		return Ingredient{}, err
 	}
 
 	return ingredient, nil
 }
 
-func (r *Repository) ListIngredients(ctx context.Context) ([]model.Ingredient, error) {
+func (r *Repository) ListIngredients(ctx context.Context) ([]Ingredient, error) {
 	rows, err := r.db.QueryContext(
 		ctx,
 		listIngredients,
@@ -105,10 +105,10 @@ func (r *Repository) ListIngredients(ctx context.Context) ([]model.Ingredient, e
 	}
 	defer rows.Close()
 
-	var ingredients []model.Ingredient
+	var ingredients []Ingredient
 
 	for rows.Next() {
-		var i model.Ingredient
+		var i Ingredient
 		if err := rows.Scan(
 			&i.Id,
 			&i.Name,

@@ -1,4 +1,4 @@
-package repository
+package database
 
 import (
 	"context"
@@ -9,16 +9,8 @@ import (
 	"sort"
 )
 
-type Repository struct {
-	db *sql.DB
-}
-
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
-}
-
 // Run Table Migration
-func (r *Repository) RunMigrations(ctx context.Context, db *sql.DB, dir string) error {
+func RunMigrations(ctx context.Context, db *sql.DB, dir string) error {
 	_, err := db.ExecContext(
 		ctx,
 		`CREATE TABLE IF NOT EXISTS schema_migrations (
