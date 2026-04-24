@@ -7,26 +7,22 @@ import (
 	"net/http"
 	"time"
 
-	"Feastio/internal/config"
-	httpHandler "Feastio/internal/http"
-	"Feastio/internal/repository"
-	"Feastio/internal/service"
+	"Feastio/internal/platform/config"
+	"Feastio/internal/platform/database"
+
+	"Feastio/internal/ingredients"
+	"Feastio/internal/users"
 )
 
 func main() {
-	// Database
-	const dbString = `
-		host=localhost
-		port=5433
-		user=postgres
-		password=postgres
-		dbname=feastio
-		sslmode=disable
-	`
+	// Context
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
+	// Database
 	cfg := config.LoadConfig()
 
-	db, err := repository.Open(dbString)
+	db, err := database.Open(cfg.DBString)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -38,37 +34,28 @@ func main() {
 		log.Fatal("Database not reachable:", err)
 	}
 
-	// Context
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	// Repo | Service | Handler
-	repo := repository.NewRepository(db)
-	service := service.NewService(repo, cfg.EmailKey)
-	handler := httpHandler.NewHandler(service)
-
-	if err := repo.RunMigrations(ctx, db, "../../internal/repository/migrations"); err != nil {
+	if err := database.RunMigrations(ctx, db, "../../internal/platform/database/migrations"); err != nil {
 		log.Fatal(err)
 	}
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		path := "Welcome"
-		json.NewEncoder(w).Encode(path)
+	// HTTP
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		greeting := "Welcome"
+		json.NewEncoder(w).Encode(greeting)
 	})
 
-	http.HandleFunc("POST /ingredients", handler.CreateIngredient)
-	http.HandleFunc("GET /ingredients", handler.ListIngredients)
-	http.HandleFunc("GET /ingredients/", handler.GetIngredient)
-	http.HandleFunc("DELETE /ingredients/", handler.DeleteIngredient)
+	usersModule := users.New(db, cfg)
+	usersModule.RegisterRoutes(mux)
 
-	http.HandleFunc("POST /users", handler.CreateUser)
-	http.HandleFunc("GET /users/", handler.GetUser)
-	http.HandleFunc("GET /users", handler.ListUsers)
-	http.HandleFunc("DELETE /users/", handler.DeleteUser)
+	ingredientsModule := ingredients.New(db)
+	ingredientsModule.RegisterRoutes(mux)
 
 	// Server
 	srv := &http.Server{
 		Addr:         ":8080",
+		Handler:      mux,
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,

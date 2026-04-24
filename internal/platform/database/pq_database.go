@@ -1,4 +1,4 @@
-package repository
+package database
 
 import (
 	"database/sql"
@@ -24,13 +24,15 @@ var (
 	ErrConflict = errors.New("Resource conflict")
 
 	// Users
-	ErrDuplicateUsername = errors.New("Duplicate username found")
-	ErrDuplicateEmail    = errors.New("Duplicate email found")
+	ErrDuplicateEmail = errors.New("Duplicate email found")
+
+	// Recipes
+	ErrDuplicateRecipe = errors.New("Duplicate recipe found")
 )
 
 var uniqueConstraints = map[string]error{
-	"user_unique_name":  ErrDuplicateUsername,
-	"user_unique_email": ErrDuplicateEmail,
+	"user_unique_email":  ErrDuplicateEmail,
+	"recipe_unique_name": ErrDuplicateEmail,
 }
 
 func DBError(err error) error {

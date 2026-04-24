@@ -1,24 +1,30 @@
-package http
+package users
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
-
-	"Feastio/internal/dto"
-	"Feastio/internal/service"
 )
+
+type Handler struct {
+	service *Service
+}
+
+func NewHandler(service *Service) *Handler {
+	return &Handler{service: service}
+}
 
 func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	defer r.Body.Close()
 
-	var request dto.CreateUser
+	var request CreateUser
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
@@ -26,22 +32,23 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.service.CreateUser(ctx, request)
 	if err != nil {
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		if errors.Is(err, context.Canceled) {
 			return
 		}
-		if errors.Is(err, service.ErrDuplicateUsername) {
-			http.Error(w, "Username already exists", http.StatusConflict)
+		if errors.Is(err, context.DeadlineExceeded) {
+			http.Error(w, "Request timed out", http.StatusGatewayTimeout)
 			return
 		}
-		if errors.Is(err, service.ErrDuplicateEmail) {
+		if errors.Is(err, ErrDuplicateEmail) {
 			http.Error(w, "User account already exists", http.StatusConflict)
 			return
 		}
-		if errors.Is(err, service.ErrUserNotFound) {
-			http.Error(w, "User not found", http.StatusNotFound)
+		if errors.Is(err, ErrUserNotFound) {
+			http.Error(w, "Failed to create user", http.StatusInternalServerError)
 			return
 		}
-		http.Error(w, "Failed to create user: "+err.Error(), http.StatusInternalServerError)
+		fmt.Println("Internal server error: " + err.Error())
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -64,7 +71,7 @@ func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.service.GetUser(ctx, id)
 	if err != nil {
-		if errors.Is(err, service.ErrUserNotFound) {
+		if errors.Is(err, ErrUserNotFound) {
 			http.Error(w, "User not found", http.StatusNotFound)
 			return
 		}
@@ -101,8 +108,8 @@ func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	err = h.service.DeleteUser(ctx, id)
 	if err != nil {
-		if errors.Is(err, service.ErrUserNotFound) {
-			http.Error(w, "Ingredient id not found", http.StatusNotFound)
+		if errors.Is(err, ErrUserNotFound) {
+			http.Error(w, "User not found", http.StatusNotFound)
 			return
 		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
