@@ -1,11 +1,12 @@
 package users
 
 import (
-	"crypto/cipher"
 	"database/sql"
 	"net/http"
 
-	"Feastio/internal/platform/config"
+	"foodapp/internal/middleware"
+	"foodapp/internal/platform/config"
+	"foodapp/internal/platform/security"
 )
 
 type Module struct {
@@ -13,16 +14,11 @@ type Module struct {
 	handler *Handler
 }
 
-type UserKeys struct {
-	encryption cipher.Block
-	hash       []byte
-}
-
 func New(db *sql.DB, cfg config.Config) *Module {
 	repo := NewRepository(db)
-	service := NewService(repo, UserKeys{
-		encryption: cfg.EmailEncryptionKey,
-		hash:       cfg.EmailHashKey,
+	service := NewService(repo, security.SecurityKeys{
+		Encryption: cfg.EmailEncryptionKey,
+		Hash:       cfg.EmailHashKey,
 	})
 	handler := NewHandler(service)
 
@@ -32,9 +28,16 @@ func New(db *sql.DB, cfg config.Config) *Module {
 	}
 }
 
-func (m *Module) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("GET /users/{id}", m.handler.GetUser)
+func (m *Module) RegisterRoutes(
+	mux *http.ServeMux,
+	mw *middleware.Middleware,
+) {
+	mux.Handle("GET /users/{id}", mw.Authentication(mw.Admin(http.HandlerFunc(m.handler.GetUser))))
 	mux.HandleFunc("POST /users", m.handler.CreateUser)
-	mux.HandleFunc("GET /users", m.handler.ListUsers)
-	mux.HandleFunc("DELETE /users/{id}", m.handler.DeleteUser)
+	mux.Handle("GET /users", mw.Authentication(mw.Admin(http.HandlerFunc(m.handler.ListUsers))))
+	mux.Handle("DELETE /users/{id}", mw.Authentication(mw.Admin(http.HandlerFunc(m.handler.DeleteUser))))
+}
+
+func (m *Module) Service() *Service {
+	return m.service
 }

@@ -63,7 +63,7 @@ func GetCypher(data string) (cipher.Block, error) {
 	dataByte := []byte(data)
 
 	if len(dataByte) != 16 && len(dataByte) != 24 && len(dataByte) != 32 {
-		return nil, fmt.Errorf("invalid key size")
+		return nil, fmt.Errorf("Invalid key size: %t", len(dataByte))
 	}
 
 	block, err := aes.NewCipher([]byte(data))

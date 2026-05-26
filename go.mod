@@ -1,4 +1,4 @@
-module Feastio
+module foodapp
 
 go 1.25.0
 

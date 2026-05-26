@@ -1,4 +1,4 @@
-package ingredients
+package models
 
 import "time"
 

@@ -1,9 +1,10 @@
 package ingredients
 
 import (
-	"Feastio/internal/platform/database"
 	"context"
 	"errors"
+	m "foodapp/internal/models"
+	"foodapp/internal/platform/database"
 )
 
 type Service struct {
@@ -14,15 +15,9 @@ func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
 
-// Error Definitions
-var (
-	ErrIngredientNotFound      = errors.New("Ingredient not found")
-	ErrIngredientAlreadyExists = errors.New("Ingredient already exists")
-)
-
 // Functions
-func (s *Service) CreateIngredient(ctx context.Context, request CreateIngredient) (Ingredient, error) {
-	i := Ingredient{
+func (s *Service) CreateIngredient(ctx context.Context, request m.CreateIngredient) (m.Ingredient, error) {
+	i := m.Ingredient{
 		Name:                   request.Name,
 		Category:               request.Category,
 		DefaultMeasurementType: request.DefaultMeasurementType,
@@ -32,29 +27,29 @@ func (s *Service) CreateIngredient(ctx context.Context, request CreateIngredient
 
 	ingredient, err := s.repo.CreateIngredient(ctx, i)
 	if err != nil {
-		if errors.Is(err, database.ErrNotFound) {
-			return Ingredient{}, ErrIngredientNotFound
+		var appErr *database.AppError
+		if errors.As(err, &appErr) {
+			if appErr.Type == database.ErrTypeNotFound {
+				return m.Ingredient{}, &database.AppError{Type: database.ErrTypeFailedCreation, Err: err}
+			}
 		}
-		return Ingredient{}, err
+		return m.Ingredient{}, err
 	}
 
 	return ingredient, nil
 }
 
-func (s *Service) GetIngredient(ctx context.Context, id int64) (Ingredient, error) {
+func (s *Service) GetIngredient(ctx context.Context, id int64) (m.Ingredient, error) {
 	ingredient, err := s.repo.GetIngredient(ctx, id)
 
 	if err != nil {
-		if errors.Is(err, database.ErrNotFound) {
-			return Ingredient{}, ErrIngredientNotFound
-		}
-		return Ingredient{}, err
+		return m.Ingredient{}, err
 	}
 
 	return ingredient, nil
 }
 
-func (s *Service) ListIngredients(ctx context.Context) ([]Ingredient, error) {
+func (s *Service) ListIngredients(ctx context.Context) ([]m.Ingredient, error) {
 	ingredients, err := s.repo.ListIngredients(ctx)
 	if err != nil {
 		return nil, err
@@ -66,9 +61,6 @@ func (s *Service) ListIngredients(ctx context.Context) ([]Ingredient, error) {
 func (s *Service) DeleteIngredient(ctx context.Context, id int64) error {
 	err := s.repo.DeleteIngredient(ctx, id)
 	if err != nil {
-		if errors.Is(err, ErrIngredientNotFound) {
-			return ErrIngredientNotFound
-		}
 		return err
 	}
 

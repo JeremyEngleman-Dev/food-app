@@ -1,4 +1,4 @@
-package model
+package models
 
 type Recipe struct {
 	Id          int64

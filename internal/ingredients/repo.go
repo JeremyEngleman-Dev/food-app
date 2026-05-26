@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	m "foodapp/internal/models"
+	"foodapp/internal/platform/database"
 	"time"
 )
 
@@ -30,9 +32,9 @@ var (
 )
 
 // Repository Functions
-func (r *Repository) CreateIngredient(ctx context.Context, i Ingredient) (Ingredient, error) {
+func (r *Repository) CreateIngredient(ctx context.Context, i m.Ingredient) (m.Ingredient, error) {
 	var now = time.Now().UTC()
-	var ingredient Ingredient
+	var ingredient m.Ingredient
 
 	err := r.db.QueryRowContext(
 		ctx,
@@ -57,17 +59,14 @@ func (r *Repository) CreateIngredient(ctx context.Context, i Ingredient) (Ingred
 		&ingredient.ModifiedBy,
 	)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return Ingredient{}, ErrIngredientNotFound
-		}
-		return Ingredient{}, err
+		return m.Ingredient{}, database.DBError(err)
 	}
 
 	return ingredient, nil
 }
 
-func (r *Repository) GetIngredient(ctx context.Context, id int64) (Ingredient, error) {
-	var ingredient Ingredient
+func (r *Repository) GetIngredient(ctx context.Context, id int64) (m.Ingredient, error) {
+	var ingredient m.Ingredient
 
 	err := r.db.QueryRowContext(
 		ctx,
@@ -86,29 +85,26 @@ func (r *Repository) GetIngredient(ctx context.Context, id int64) (Ingredient, e
 	)
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return Ingredient{}, ErrIngredientNotFound
-		}
-		return Ingredient{}, err
+		return m.Ingredient{}, database.DBError(err)
 	}
 
 	return ingredient, nil
 }
 
-func (r *Repository) ListIngredients(ctx context.Context) ([]Ingredient, error) {
+func (r *Repository) ListIngredients(ctx context.Context) ([]m.Ingredient, error) {
 	rows, err := r.db.QueryContext(
 		ctx,
 		listIngredients,
 	)
 	if err != nil {
-		return nil, err
+		return nil, database.DBError(err)
 	}
 	defer rows.Close()
 
-	var ingredients []Ingredient
+	var ingredients []m.Ingredient
 
 	for rows.Next() {
-		var i Ingredient
+		var i m.Ingredient
 		if err := rows.Scan(
 			&i.Id,
 			&i.Name,
@@ -120,7 +116,7 @@ func (r *Repository) ListIngredients(ctx context.Context) ([]Ingredient, error) 
 			&i.ModifiedAt,
 			&i.ModifiedBy,
 		); err != nil {
-			return nil, err
+			return nil, database.DBError(err)
 		}
 		ingredients = append(ingredients, i)
 	}
@@ -135,16 +131,16 @@ func (r *Repository) DeleteIngredient(ctx context.Context, id int64) error {
 		id,
 	)
 	if err != nil {
-		return err
+		return database.DBError(err)
 	}
 
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
-		return err
+		return database.DBError(err)
 	}
 
 	if rowsAffected == 0 {
-		return ErrIngredientNotFound
+		return &database.AppError{Type: database.ErrTypeNotFound, Err: errors.New("Ingredient not found")}
 	}
 
 	return nil

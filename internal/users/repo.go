@@ -1,9 +1,11 @@
 package users
 
 import (
-	"Feastio/internal/platform/database"
 	"context"
 	"database/sql"
+	"errors"
+	m "foodapp/internal/models"
+	"foodapp/internal/platform/database"
 	"time"
 )
 
@@ -26,18 +28,20 @@ var (
 	`
 	getUser = `
 	SELECT "id", "displayName", "emailEncrypted", "createdAt", "modifiedAt","role"
-	FROM users WHERE id=$1
+	FROM users WHERE "id"=$1
 	`
+	getUserByEmailHash = `SELECT "id", "displayName", "passwordHash", "emailEncrypted", "createdAt", "modifiedAt","role"
+	FROM users WHERE "emailHash"=$1`
 	listUsers = `SELECT "id", "displayName", "emailEncrypted", "createdAt", "modifiedAt","role"
 	FROM users`
-	deleteUser      = `DELETE FROM users WHERE id = $1`
+	deleteUser      = `DELETE FROM users WHERE "id" = $1`
 	checkEmailExist = `SELECT "emailHash" FROM users WHERE "emailHash" = $1`
 )
 
 // Functions
-func (r *Repository) CreateUser(ctx context.Context, u User) (User, error) {
+func (r *Repository) CreateUser(ctx context.Context, u m.User) (m.User, error) {
 	var now = time.Now().UTC()
-	var user User
+	var user m.User
 
 	err := r.db.QueryRowContext(
 		ctx,
@@ -58,14 +62,14 @@ func (r *Repository) CreateUser(ctx context.Context, u User) (User, error) {
 		&user.Role,
 	)
 	if err != nil {
-		return User{}, database.DBError(err)
+		return m.User{}, database.DBError(err)
 	}
 
 	return user, nil
 }
 
-func (r *Repository) GetUser(ctx context.Context, id int64) (User, error) {
-	var user User
+func (r *Repository) GetUserById(ctx context.Context, id int64) (m.User, error) {
+	var user m.User
 
 	err := r.db.QueryRowContext(
 		ctx,
@@ -80,26 +84,49 @@ func (r *Repository) GetUser(ctx context.Context, id int64) (User, error) {
 		&user.Role,
 	)
 	if err != nil {
-		return User{}, database.DBError(err)
+		return m.User{}, database.DBError(err)
 	}
 
 	return user, nil
 }
 
-func (r *Repository) ListUsers(ctx context.Context) ([]User, error) {
+func (r *Repository) GetUserByEmailHash(ctx context.Context, emailHash string) (m.User, error) {
+	var user m.User
+
+	err := r.db.QueryRowContext(
+		ctx,
+		getUserByEmailHash,
+		emailHash,
+	).Scan(
+		&user.Id,
+		&user.DisplayName,
+		&user.PasswordHash,
+		&user.EmailEncrypted,
+		&user.CreatedAt,
+		&user.ModifiedAt,
+		&user.Role,
+	)
+	if err != nil {
+		return m.User{}, database.DBError(err)
+	}
+
+	return user, nil
+}
+
+func (r *Repository) ListUsers(ctx context.Context) ([]m.User, error) {
 	rows, err := r.db.QueryContext(
 		ctx,
 		listUsers,
 	)
 	if err != nil {
-		return nil, err
+		return nil, &database.AppError{Type: database.ErrTypeUnknown, Err: err}
 	}
 	defer rows.Close()
 
-	var users []User
+	var users []m.User
 
 	for rows.Next() {
-		var u User
+		var u m.User
 		if err := rows.Scan(
 			&u.Id,
 			&u.DisplayName,
@@ -128,11 +155,11 @@ func (r *Repository) DeleteUser(ctx context.Context, id int64) error {
 
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
-		return err
+		return database.DBError(err)
 	}
 
 	if rowsAffected == 0 {
-		return database.ErrNotFound
+		return &database.AppError{Type: database.ErrTypeNotFound, Err: errors.New("User not found")}
 	}
 
 	return nil
