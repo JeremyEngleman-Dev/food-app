@@ -1,10 +1,11 @@
 package users
 
 import (
+	m "Feastio/internal/models"
+	"Feastio/internal/platform/database"
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -24,31 +25,15 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	defer r.Body.Close()
 
-	var request CreateUser
+	var request m.CreateUser
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		WriteJsonReturn(w, http.StatusBadRequest, map[string]string{"error": "Invalid JSON"})
 		return
 	}
 
 	user, err := h.service.CreateUser(ctx, request)
 	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			return
-		}
-		if errors.Is(err, context.DeadlineExceeded) {
-			http.Error(w, "Request timed out", http.StatusGatewayTimeout)
-			return
-		}
-		if errors.Is(err, ErrDuplicateEmail) {
-			http.Error(w, "User account already exists", http.StatusConflict)
-			return
-		}
-		if errors.Is(err, ErrUserNotFound) {
-			http.Error(w, "Failed to create user", http.StatusInternalServerError)
-			return
-		}
-		fmt.Println("Internal server error: " + err.Error())
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		ParseError(w, err)
 		return
 	}
 
@@ -65,17 +50,13 @@ func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/users/")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		http.Error(w, "invalid id", http.StatusNotFound)
+		WriteJsonReturn(w, http.StatusNotFound, map[string]string{"error": "Invalid id"})
 		return
 	}
 
-	user, err := h.service.GetUser(ctx, id)
+	user, err := h.service.GetUserById(ctx, id)
 	if err != nil {
-		if errors.Is(err, ErrUserNotFound) {
-			http.Error(w, "User not found", http.StatusNotFound)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		ParseError(w, err)
 		return
 	}
 
@@ -88,7 +69,7 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 
 	users, err := h.service.ListUsers(ctx)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		ParseError(w, err)
 		return
 	}
 
@@ -102,19 +83,53 @@ func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/users/")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		http.Error(w, "Invalid id", http.StatusNotFound)
+		WriteJsonReturn(w, http.StatusNotFound, map[string]string{"error": "Invalid id"})
 		return
 	}
 
-	err = h.service.DeleteUser(ctx, id)
+	err = h.service.DeleteUserById(ctx, id)
 	if err != nil {
-		if errors.Is(err, ErrUserNotFound) {
-			http.Error(w, "User not found", http.StatusNotFound)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		ParseError(w, err)
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// Error Handling
+func WriteJsonReturn(w http.ResponseWriter, status int, data any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		log.Println("failed to write response:", err)
+	}
+}
+
+func ParseError(w http.ResponseWriter, err error) {
+	if errors.Is(err, context.Canceled) {
+		return
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		WriteJsonReturn(w, http.StatusGatewayTimeout, map[string]string{"error": "Gateway timeout"})
+	}
+
+	var appErr *database.AppError
+	if errors.As(err, &appErr) {
+		switch appErr.Type {
+		case database.ErrTypeNotFound:
+			WriteJsonReturn(w, http.StatusNotFound, map[string]string{"error": "User not found"})
+			return
+		case database.ErrTypeConflict:
+			WriteJsonReturn(w, http.StatusConflict, map[string]string{"error": "User already exist"})
+			return
+		case database.ErrTypeFailedCreation:
+			WriteJsonReturn(w, http.StatusInternalServerError, map[string]string{"error": "Failed to create user"})
+			return
+		default:
+			WriteJsonReturn(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
+			return
+		}
+	}
+
+	WriteJsonReturn(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
 }

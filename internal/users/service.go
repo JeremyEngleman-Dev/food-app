@@ -1,45 +1,40 @@
 package users
 
 import (
+	m "Feastio/internal/models"
+	"Feastio/internal/platform/database"
+	"Feastio/internal/platform/security"
 	"context"
 	"errors"
 	"log"
-
-	"Feastio/internal/platform/database"
 )
 
 type Service struct {
 	repo *Repository
-	cfg  UserKeys
+	cfg  security.SecurityKeys
 }
 
-func NewService(repo *Repository, cfg UserKeys) *Service {
+func NewService(repo *Repository, cfg security.SecurityKeys) *Service {
 	return &Service{
 		repo: repo,
 		cfg:  cfg,
 	}
 }
 
-// Error Definitions
-var (
-	ErrUserNotFound   = errors.New("User not found")
-	ErrDuplicateEmail = errors.New("Email already exists")
-)
-
 // Functions
-func (s *Service) CreateUser(ctx context.Context, u CreateUser) (DisplayUser, error) {
-	hashedEmail := HashData(u.Email, s.cfg.hash)
+func (s *Service) CreateUser(ctx context.Context, u m.CreateUser) (m.DisplayUser, error) {
+	hashedEmail := security.HashData(u.Email, s.cfg.Hash)
 
-	hashedPassword, err := HashPassword(u.Password)
+	hashedPassword, err := security.HashPassword(u.Password)
 	if err != nil {
-		return DisplayUser{}, err
+		return m.DisplayUser{}, err
 	}
-	encryptedEmail, err := EncryptData(u.Email, s.cfg.encryption)
+	encryptedEmail, err := security.EncryptData(u.Email, s.cfg.Encryption)
 	if err != nil {
-		return DisplayUser{}, err
+		return m.DisplayUser{}, err
 	}
 
-	userCreation := User{
+	userCreation := m.User{
 		DisplayName:    u.DisplayName,
 		PasswordHash:   hashedPassword,
 		EmailHash:      hashedEmail,
@@ -48,49 +43,54 @@ func (s *Service) CreateUser(ctx context.Context, u CreateUser) (DisplayUser, er
 	}
 
 	user, err := s.repo.CreateUser(ctx, userCreation)
-
 	if err != nil {
-		if errors.Is(err, database.ErrDuplicateEmail) {
-			return DisplayUser{}, ErrDuplicateEmail
+		var appErr *database.AppError
+		if errors.As(err, &appErr) {
+			if appErr.Type == database.ErrTypeNotFound {
+				return m.DisplayUser{}, &database.AppError{Type: database.ErrTypeFailedCreation, Err: err}
+			}
 		}
-		if errors.Is(err, database.ErrNotFound) {
-			return DisplayUser{}, ErrUserNotFound
-		}
-		return DisplayUser{}, err
+		return m.DisplayUser{}, err
 	}
 
 	response, err := s.DisplayUser(user)
 	if err != nil {
-		return DisplayUser{}, err
+		return m.DisplayUser{}, err
 	}
 
 	return response, nil
 }
 
-func (s *Service) GetUser(ctx context.Context, id int64) (DisplayUser, error) {
-	user, err := s.repo.GetUser(ctx, id)
+func (s *Service) GetUserById(ctx context.Context, id int64) (m.DisplayUser, error) {
+	user, err := s.repo.GetUserById(ctx, id)
 	if err != nil {
-		if errors.Is(err, database.ErrNotFound) {
-			return DisplayUser{}, ErrUserNotFound
-		}
-		return DisplayUser{}, err
+		return m.DisplayUser{}, err
 	}
 
 	response, err := s.DisplayUser(user)
 	if err != nil {
-		return DisplayUser{}, err
+		return m.DisplayUser{}, err
 	}
 
 	return response, nil
 }
 
-func (s *Service) ListUsers(ctx context.Context) ([]DisplayUser, error) {
+func (s *Service) GetUserByEmailHash(ctx context.Context, emailHash string) (m.User, error) {
+	user, err := s.repo.GetUserByEmailHash(ctx, emailHash)
+	if err != nil {
+		return m.User{}, err
+	}
+
+	return user, nil
+}
+
+func (s *Service) ListUsers(ctx context.Context) ([]m.DisplayUser, error) {
 	users, err := s.repo.ListUsers(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	response := make([]DisplayUser, len(users))
+	response := make([]m.DisplayUser, len(users))
 	for i, u := range users {
 		response[i], err = s.DisplayUser(u)
 		if err != nil {
@@ -102,12 +102,9 @@ func (s *Service) ListUsers(ctx context.Context) ([]DisplayUser, error) {
 	return response, nil
 }
 
-func (s *Service) DeleteUser(ctx context.Context, id int64) error {
+func (s *Service) DeleteUserById(ctx context.Context, id int64) error {
 	err := s.repo.DeleteUser(ctx, id)
 	if err != nil {
-		if errors.Is(err, database.ErrNotFound) {
-			return ErrUserNotFound
-		}
 		return err
 	}
 
@@ -115,19 +112,19 @@ func (s *Service) DeleteUser(ctx context.Context, id int64) error {
 }
 
 // Support Functions
-func (s *Service) DisplayUser(m User) (DisplayUser, error) {
-	email, err := DecryptData(m.EmailEncrypted, s.cfg.encryption)
+func (s *Service) DisplayUser(u m.User) (m.DisplayUser, error) {
+	email, err := security.DecryptData(u.EmailEncrypted, s.cfg.Encryption)
 	if err != nil {
-		return DisplayUser{}, err
+		return m.DisplayUser{}, err
 	}
 
-	user := DisplayUser{
-		Id:          m.Id,
-		DisplayName: m.DisplayName,
+	user := m.DisplayUser{
+		Id:          u.Id,
+		DisplayName: u.DisplayName,
 		Email:       email,
-		CreatedAt:   m.CreatedAt,
-		ModifiedAt:  m.ModifiedAt,
-		Role:        m.Role,
+		CreatedAt:   u.CreatedAt,
+		ModifiedAt:  u.ModifiedAt,
+		Role:        u.Role,
 	}
 
 	return user, nil

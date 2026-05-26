@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"net/http"
 	"time"
@@ -11,6 +10,8 @@ import (
 	"Feastio/internal/platform/database"
 
 	"Feastio/internal/ingredients"
+	"Feastio/internal/middleware"
+	"Feastio/internal/sessions"
 	"Feastio/internal/users"
 )
 
@@ -26,7 +27,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	defer db.Close()
 
 	err = db.Ping()
@@ -41,16 +41,18 @@ func main() {
 	// HTTP
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		greeting := "Welcome"
-		json.NewEncoder(w).Encode(greeting)
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
 	})
 
+	mw := middleware.New(db)
 	usersModule := users.New(db, cfg)
-	usersModule.RegisterRoutes(mux)
-
 	ingredientsModule := ingredients.New(db)
+	sessionsModule := sessions.New(db, cfg, usersModule.Service())
+
+	usersModule.RegisterRoutes(mux, mw)
 	ingredientsModule.RegisterRoutes(mux)
+	sessionsModule.RegisterRoutes(mux)
 
 	// Server
 	srv := &http.Server{
