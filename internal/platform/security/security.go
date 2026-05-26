@@ -1,4 +1,4 @@
-package users
+package security
 
 import (
 	"crypto/cipher"
@@ -12,6 +12,11 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 )
+
+type SecurityKeys struct {
+	Encryption cipher.Block
+	Hash       []byte
+}
 
 // Password
 func HashPassword(data string) (string, error) {
