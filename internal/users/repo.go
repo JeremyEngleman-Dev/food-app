@@ -123,7 +123,7 @@ func (r *Repository) ListUsers(ctx context.Context) ([]m.User, error) {
 	}
 	defer rows.Close()
 
-	var users []m.User
+	users := []m.User{}
 
 	for rows.Next() {
 		var u m.User

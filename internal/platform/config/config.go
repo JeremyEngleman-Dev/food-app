@@ -17,9 +17,8 @@ type Config struct {
 }
 
 func LoadConfig() Config {
-	err := godotenv.Load("../../.env")
-	if err != nil {
-		log.Println("No .env file found")
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, using environment variables")
 	}
 
 	// Database
@@ -44,7 +43,7 @@ func LoadConfig() Config {
 	if rawEmailEncryptionKey == "" {
 		log.Fatal("Missing value: EMAIL_ENCRYPTION_KEY")
 	}
-	emailEncryptionKey, err := GetCypher(rawEmailEncryptionKey)
+	emailEncryptionKey, err := GetCipher(rawEmailEncryptionKey)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -59,16 +58,16 @@ func LoadConfig() Config {
 	}
 }
 
-func GetCypher(data string) (cipher.Block, error) {
+func GetCipher(data string) (cipher.Block, error) {
 	dataByte := []byte(data)
 
 	if len(dataByte) != 16 && len(dataByte) != 24 && len(dataByte) != 32 {
-		return nil, fmt.Errorf("Invalid key size: %t", len(dataByte))
+		return nil, fmt.Errorf("Invalid key size: %d", len(dataByte))
 	}
 
 	block, err := aes.NewCipher([]byte(data))
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	return block, nil

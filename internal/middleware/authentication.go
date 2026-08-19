@@ -28,7 +28,11 @@ func (m *Middleware) Authentication(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), "userCtx", userContext)
+		ctx := context.WithValue(
+			r.Context(),
+			"userCtx",
+			userContext,
+		)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

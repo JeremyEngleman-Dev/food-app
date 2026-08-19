@@ -23,6 +23,10 @@ func NewHandler(service *Service) *Handler {
 // Handlers
 func (h *Handler) CreateIngredient(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	userCtx, ok := ctx.Value("userCtx").(m.UserContext)
+	if !ok {
+		http.Error(w, "user ID not found", http.StatusUnauthorized)
+	}
 
 	defer r.Body.Close()
 
@@ -31,6 +35,12 @@ func (h *Handler) CreateIngredient(w http.ResponseWriter, r *http.Request) {
 		WriteJsonReturn(w, http.StatusBadRequest, map[string]string{"error": "Invalid JSON"})
 		return
 	}
+	if request.Name == "" || request.Description == "" {
+		WriteJsonReturn(w, http.StatusBadRequest, map[string]string{"error": "Invalid JSON"})
+		return
+	}
+
+	request.CreatedBy = userCtx.UserId
 
 	ingredient, err := h.service.CreateIngredient(ctx, request)
 	if err != nil {

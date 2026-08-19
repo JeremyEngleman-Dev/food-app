@@ -3,6 +3,8 @@ package ingredients
 import (
 	"database/sql"
 	"net/http"
+
+	"foodapp/internal/middleware"
 )
 
 type Module struct {
@@ -21,9 +23,12 @@ func New(db *sql.DB) *Module {
 	}
 }
 
-func (m *Module) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("POST /ingredients", m.handler.CreateIngredient)
-	mux.HandleFunc("GET /ingredients", m.handler.ListIngredients)
-	mux.HandleFunc("GET /ingredients/{id}", m.handler.GetIngredient)
-	mux.HandleFunc("DELETE /ingredients/", m.handler.DeleteIngredient)
+func (m *Module) RegisterRoutes(
+	mux *http.ServeMux,
+	mw *middleware.Middleware,
+) {
+	mux.Handle("POST /ingredients", mw.Authentication(http.HandlerFunc(m.handler.CreateIngredient)))
+	mux.Handle("GET /ingredients", mw.Authentication(http.HandlerFunc(m.handler.ListIngredients)))
+	mux.Handle("GET /ingredients/{id}", mw.Authentication(http.HandlerFunc(m.handler.GetIngredient)))
+	mux.Handle("DELETE /ingredients/", mw.Authentication(http.HandlerFunc(m.handler.DeleteIngredient)))
 }

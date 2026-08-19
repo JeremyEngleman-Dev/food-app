@@ -101,7 +101,7 @@ func (r *Repository) ListIngredients(ctx context.Context) ([]m.Ingredient, error
 	}
 	defer rows.Close()
 
-	var ingredients []m.Ingredient
+	ingredients := []m.Ingredient{}
 
 	for rows.Next() {
 		var i m.Ingredient

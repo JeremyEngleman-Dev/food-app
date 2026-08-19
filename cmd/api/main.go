@@ -34,7 +34,7 @@ func main() {
 		log.Fatal("Database not reachable:", err)
 	}
 
-	if err := database.RunMigrations(ctx, db, "../../internal/platform/database/migrations"); err != nil {
+	if err := database.RunMigrations(ctx, db, "internal/platform/database/migrations"); err != nil {
 		log.Fatal(err)
 	}
 
@@ -43,6 +43,7 @@ func main() {
 
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status":"ok"}`))
 	})
 
 	mw := middleware.New(db)
@@ -51,7 +52,7 @@ func main() {
 	sessionsModule := sessions.New(db, cfg, usersModule.Service())
 
 	usersModule.RegisterRoutes(mux, mw)
-	ingredientsModule.RegisterRoutes(mux)
+	ingredientsModule.RegisterRoutes(mux, mw)
 	sessionsModule.RegisterRoutes(mux)
 
 	// Server

@@ -25,8 +25,17 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	defer r.Body.Close()
 
+	validRoles := map[string]bool{
+		"user":  true,
+		"admin": true,
+	}
+
 	var request m.CreateUser
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		WriteJsonReturn(w, http.StatusBadRequest, map[string]string{"error": "Invalid JSON"})
+		return
+	}
+	if request.Email == "" || request.Password == "" || !validRoles[request.Role] {
 		WriteJsonReturn(w, http.StatusBadRequest, map[string]string{"error": "Invalid JSON"})
 		return
 	}
