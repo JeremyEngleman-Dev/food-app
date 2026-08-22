@@ -1,34 +1,25 @@
 package ingredients
 
 import (
-	"database/sql"
 	"net/http"
-
-	"foodapp/internal/middleware"
 )
 
 type Module struct {
-	service *Service
 	handler *Handler
 }
 
-func New(db *sql.DB) *Module {
-	repo := NewRepository(db)
-	service := NewService(repo)
-	handler := NewHandler(service)
-
+func NewModule(handler *Handler) *Module {
 	return &Module{
-		service: service,
 		handler: handler,
 	}
 }
 
-func (m *Module) RegisterRoutes(
+func (mod *Module) RegisterRoutes(
 	mux *http.ServeMux,
-	mw *middleware.Middleware,
+	auth func(http.Handler) http.Handler,
 ) {
-	mux.Handle("POST /ingredients", mw.Authentication(http.HandlerFunc(m.handler.CreateIngredient)))
-	mux.Handle("GET /ingredients", mw.Authentication(http.HandlerFunc(m.handler.ListIngredients)))
-	mux.Handle("GET /ingredients/{id}", mw.Authentication(http.HandlerFunc(m.handler.GetIngredient)))
-	mux.Handle("DELETE /ingredients/", mw.Authentication(http.HandlerFunc(m.handler.DeleteIngredient)))
+	mux.Handle("POST /ingredients", auth(http.HandlerFunc(mod.handler.CreateIngredient)))
+	mux.Handle("GET /ingredients", auth(http.HandlerFunc(mod.handler.ListIngredients)))
+	mux.Handle("GET /ingredients/{id}", auth(http.HandlerFunc(mod.handler.GetIngredient)))
+	mux.Handle("DELETE /ingredients/", auth(http.HandlerFunc(mod.handler.DeleteIngredient)))
 }

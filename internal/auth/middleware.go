@@ -1,15 +1,25 @@
-package middleware
+package auth
 
 import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
-	model "foodapp/internal/models"
 	"net/http"
+
+	m "foodapp/internal/models"
 )
 
-func (m *Middleware) Authentication(next http.Handler) http.Handler {
+type Middleware struct {
+	service *Service
+}
+
+func NewMiddleware(service *Service) *Middleware {
+	return &Middleware{
+		service: service,
+	}
+}
+
+func (mw *Middleware) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("session_id")
 		if err != nil {
@@ -17,9 +27,8 @@ func (m *Middleware) Authentication(next http.Handler) http.Handler {
 			return
 		}
 
-		userContext, err := m.service.ValidateSession(r.Context(), cookie.Value)
+		userContext, err := mw.service.ValidateSession(r.Context(), cookie.Value)
 		if err != nil {
-			fmt.Println("Auth Error: ", err)
 			if errors.Is(err, sql.ErrNoRows) {
 				http.Error(w, "unauthorized", http.StatusUnauthorized)
 				return
@@ -37,9 +46,9 @@ func (m *Middleware) Authentication(next http.Handler) http.Handler {
 	})
 }
 
-func (m *Middleware) Admin(next http.Handler) http.Handler {
+func (mw *Middleware) Admin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userCtx, ok := r.Context().Value("userCtx").(model.UserContext)
+		userCtx, ok := r.Context().Value("userCtx").(m.UserContext)
 		if !ok {
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return

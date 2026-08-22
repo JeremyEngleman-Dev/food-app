@@ -23,9 +23,10 @@ func NewHandler(service *Service) *Handler {
 // Handlers
 func (h *Handler) CreateIngredient(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	userCtx, ok := ctx.Value("userCtx").(m.UserContext)
+	userCtx, ok := r.Context().Value("userCtx").(m.UserContext)
 	if !ok {
-		http.Error(w, "user ID not found", http.StatusUnauthorized)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
 	}
 
 	defer r.Body.Close()

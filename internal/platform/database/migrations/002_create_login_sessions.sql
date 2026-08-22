@@ -4,7 +4,6 @@ CREATE TABLE IF NOT EXISTS public.login_sessions
     "userId" INTEGER UNIQUE NOT NULL,
     "expiresAt" TIMESTAMPTZ NOT NULL,
     "createdAt" TIMESTAMPTZ NOT NULL,
-    "role" TEXT NOT NULL,
     CONSTRAINT fk_login_sessions_user
         FOREIGN KEY ("userId")
         REFERENCES public.users ("id")

@@ -9,12 +9,20 @@ import (
 	"time"
 )
 
-type Repository struct {
+type Repository interface {
+	CreateUser(ctx context.Context, u m.User) (m.User, error)
+	GetUserById(ctx context.Context, id int64) (m.User, error)
+	GetUserByEmailHash(ctx context.Context, emailHash string) (m.User, error)
+	ListUsers(ctx context.Context) ([]m.User, error)
+	DeleteUser(ctx context.Context, id int64) error
+}
+
+type repo struct {
 	db *sql.DB
 }
 
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+func NewRepo(db *sql.DB) Repository {
+	return &repo{db: db}
 }
 
 // Database Queries
@@ -39,7 +47,7 @@ var (
 )
 
 // Functions
-func (r *Repository) CreateUser(ctx context.Context, u m.User) (m.User, error) {
+func (r *repo) CreateUser(ctx context.Context, u m.User) (m.User, error) {
 	var now = time.Now().UTC()
 	var user m.User
 
@@ -68,7 +76,7 @@ func (r *Repository) CreateUser(ctx context.Context, u m.User) (m.User, error) {
 	return user, nil
 }
 
-func (r *Repository) GetUserById(ctx context.Context, id int64) (m.User, error) {
+func (r *repo) GetUserById(ctx context.Context, id int64) (m.User, error) {
 	var user m.User
 
 	err := r.db.QueryRowContext(
@@ -90,7 +98,7 @@ func (r *Repository) GetUserById(ctx context.Context, id int64) (m.User, error) 
 	return user, nil
 }
 
-func (r *Repository) GetUserByEmailHash(ctx context.Context, emailHash string) (m.User, error) {
+func (r *repo) GetUserByEmailHash(ctx context.Context, emailHash string) (m.User, error) {
 	var user m.User
 
 	err := r.db.QueryRowContext(
@@ -113,7 +121,7 @@ func (r *Repository) GetUserByEmailHash(ctx context.Context, emailHash string) (
 	return user, nil
 }
 
-func (r *Repository) ListUsers(ctx context.Context) ([]m.User, error) {
+func (r *repo) ListUsers(ctx context.Context) ([]m.User, error) {
 	rows, err := r.db.QueryContext(
 		ctx,
 		listUsers,
@@ -143,7 +151,7 @@ func (r *Repository) ListUsers(ctx context.Context) ([]m.User, error) {
 	return users, nil
 }
 
-func (r *Repository) DeleteUser(ctx context.Context, id int64) error {
+func (r *repo) DeleteUser(ctx context.Context, id int64) error {
 	res, err := r.db.ExecContext(
 		ctx,
 		deleteUser,

@@ -7,17 +7,20 @@ import (
 	"errors"
 	m "foodapp/internal/models"
 	"foodapp/internal/platform/security"
-	"foodapp/internal/users"
 	"time"
 )
 
-type Service struct {
-	repo  *Repository
-	cfg   security.SecurityKeys
-	users *users.Service
+type UserProvider interface {
+	GetUserByEmailHash(ctx context.Context, emailHash string) (m.User, error)
 }
 
-func NewService(repo *Repository, cfg security.SecurityKeys, usersSvc *users.Service) *Service {
+type Service struct {
+	repo  Repository
+	cfg   security.SecurityKeys
+	users UserProvider
+}
+
+func NewService(repo Repository, cfg security.SecurityKeys, usersSvc UserProvider) *Service {
 	return &Service{
 		repo:  repo,
 		cfg:   cfg,
@@ -53,10 +56,9 @@ func (s *Service) LoginUser(ctx context.Context, login m.LoginInfo) (m.Session, 
 		UserId:    user.Id,
 		CreatedAt: now,
 		ExpiresAt: now.Add(15 * time.Minute),
-		Role:      user.Role,
 	}
 
-	err = s.repo.CreateLoginSession(ctx, session)
+	err = s.repo.CreateSession(ctx, session)
 	if err != nil {
 		return m.Session{}, err
 	}
@@ -65,7 +67,7 @@ func (s *Service) LoginUser(ctx context.Context, login m.LoginInfo) (m.Session, 
 }
 
 func (s *Service) LogoutUser(ctx context.Context, sessionId string) error {
-	err := s.repo.DeleteLoginSession(ctx, sessionId)
+	err := s.repo.DeleteSessionById(ctx, sessionId)
 
 	return err
 }

@@ -8,10 +8,10 @@ import (
 )
 
 type Service struct {
-	repo *Repository
+	repo Repository
 }
 
-func NewService(repo *Repository) *Service {
+func NewService(repo Repository) *Service {
 	return &Service{repo: repo}
 }
 
@@ -40,7 +40,7 @@ func (s *Service) CreateIngredient(ctx context.Context, request m.CreateIngredie
 }
 
 func (s *Service) GetIngredient(ctx context.Context, id int64) (m.Ingredient, error) {
-	ingredient, err := s.repo.GetIngredient(ctx, id)
+	ingredient, err := s.repo.GetIngredientById(ctx, id)
 
 	if err != nil {
 		return m.Ingredient{}, err

@@ -10,11 +10,11 @@ import (
 )
 
 type Service struct {
-	repo *Repository
+	repo Repository
 	cfg  security.SecurityKeys
 }
 
-func NewService(repo *Repository, cfg security.SecurityKeys) *Service {
+func NewService(repo Repository, cfg security.SecurityKeys) *Service {
 	return &Service{
 		repo: repo,
 		cfg:  cfg,

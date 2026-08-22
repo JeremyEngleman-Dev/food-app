@@ -9,12 +9,19 @@ import (
 	"time"
 )
 
-type Repository struct {
+type Repository interface {
+	CreateIngredient(ctx context.Context, i m.Ingredient) (m.Ingredient, error)
+	GetIngredientById(ctx context.Context, id int64) (m.Ingredient, error)
+	ListIngredients(ctx context.Context) ([]m.Ingredient, error)
+	DeleteIngredient(ctx context.Context, id int64) error
+}
+
+type repo struct {
 	db *sql.DB
 }
 
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+func Newrepo(db *sql.DB) Repository {
+	return &repo{db: db}
 }
 
 // Database Queries
@@ -31,8 +38,8 @@ var (
 	deleteIngredient = `DELETE FROM ingredients WHERE id = $1`
 )
 
-// Repository Functions
-func (r *Repository) CreateIngredient(ctx context.Context, i m.Ingredient) (m.Ingredient, error) {
+// repo Functions
+func (r *repo) CreateIngredient(ctx context.Context, i m.Ingredient) (m.Ingredient, error) {
 	var now = time.Now().UTC()
 	var ingredient m.Ingredient
 
@@ -65,7 +72,7 @@ func (r *Repository) CreateIngredient(ctx context.Context, i m.Ingredient) (m.In
 	return ingredient, nil
 }
 
-func (r *Repository) GetIngredient(ctx context.Context, id int64) (m.Ingredient, error) {
+func (r *repo) GetIngredientById(ctx context.Context, id int64) (m.Ingredient, error) {
 	var ingredient m.Ingredient
 
 	err := r.db.QueryRowContext(
@@ -91,7 +98,7 @@ func (r *Repository) GetIngredient(ctx context.Context, id int64) (m.Ingredient,
 	return ingredient, nil
 }
 
-func (r *Repository) ListIngredients(ctx context.Context) ([]m.Ingredient, error) {
+func (r *repo) ListIngredients(ctx context.Context) ([]m.Ingredient, error) {
 	rows, err := r.db.QueryContext(
 		ctx,
 		listIngredients,
@@ -124,7 +131,7 @@ func (r *Repository) ListIngredients(ctx context.Context) ([]m.Ingredient, error
 	return ingredients, nil
 }
 
-func (r *Repository) DeleteIngredient(ctx context.Context, id int64) error {
+func (r *repo) DeleteIngredient(ctx context.Context, id int64) error {
 	res, err := r.db.ExecContext(
 		ctx,
 		deleteIngredient,

@@ -8,23 +8,31 @@ import (
 	"foodapp/internal/platform/database"
 )
 
-type Repository struct {
+type Repository interface {
+	CreateSession(ctx context.Context, s m.Session) error
+	GetSessionBySessionId(ctx context.Context, sessionId string) (m.Session, error)
+	DeleteSessionById(ctx context.Context, sessionId string) error
+}
+
+type repo struct {
 	db *sql.DB
 }
 
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+func Newrepo(db *sql.DB) Repository {
+	return &repo{db: db}
 }
 
 // Database queries
 var (
 	loginUser = `INSERT INTO login_sessions (
-		"sessionId", "userId", "createdAt", "expiresAt", "role"
-	) VALUES ($1, $2, $3, $4, $5)`
+		"sessionId", "userId", "createdAt", "expiresAt"
+	) VALUES ($1, $2, $3, $4)`
+	checkLoginUser = `SELECT "sessionId", "userId", "createdAt", "expiresAt"
+	FROM login_sessions WHERE "sessionId"=$1`
 	logoutUser = `DELETE FROM login_sessions WHERE "sessionId"=$1`
 )
 
-func (r *Repository) CreateLoginSession(ctx context.Context, s m.Session) error {
+func (r *repo) CreateSession(ctx context.Context, s m.Session) error {
 	_, err := r.db.ExecContext(
 		ctx,
 		loginUser,
@@ -32,7 +40,6 @@ func (r *Repository) CreateLoginSession(ctx context.Context, s m.Session) error 
 		s.UserId,
 		s.CreatedAt,
 		s.ExpiresAt,
-		s.Role,
 	)
 
 	if err != nil {
@@ -43,7 +50,27 @@ func (r *Repository) CreateLoginSession(ctx context.Context, s m.Session) error 
 	return nil
 }
 
-func (r *Repository) DeleteLoginSession(ctx context.Context, sessionId string) error {
+func (r *repo) GetSessionBySessionId(ctx context.Context, sessionId string) (m.Session, error) {
+	var session m.Session
+
+	err := r.db.QueryRowContext(
+		ctx,
+		checkLoginUser,
+		sessionId,
+	).Scan(
+		&session.SessionId,
+		&session.UserId,
+		&session.CreatedAt,
+		&session.ExpiresAt,
+	)
+	if err != nil {
+		return m.Session{}, database.DBError(err)
+	}
+
+	return session, nil
+}
+
+func (r *repo) DeleteSessionById(ctx context.Context, sessionId string) error {
 	_, err := r.db.ExecContext(
 		ctx,
 		logoutUser,

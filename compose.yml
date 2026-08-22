@@ -4,7 +4,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      DB_HOST: db
+      DB_HOST: "db"
       DB_PORT: 5432
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
@@ -13,7 +13,8 @@ services:
       EMAIL_ENCRYPTION_KEY: ${EMAIL_ENCRYPTION_KEY}
       EMAIL_HASH_KEY: ${EMAIL_HASH_KEY}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   db:
     image: postgres:18
@@ -25,6 +26,11 @@ services:
       - "${DB_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 volumes:
   postgres_data:
