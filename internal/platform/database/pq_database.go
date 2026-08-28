@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"reflect"
+	"strings"
 
 	"github.com/lib/pq"
 )
@@ -53,4 +55,65 @@ func DBError(err error) error {
 	}
 
 	return &AppError{Type: ErrTypeUnknown, Err: err}
+}
+
+func PatchQueryBuilder(table string, updates map[string]any, identifier string, id any) (string, []any) {
+	sets := make([]string, 0, len(updates))
+	args := make([]any, 0, len(updates))
+
+	i := 1
+
+	for param, value := range updates {
+		sets = append(sets, fmt.Sprintf(`"%s" = $%d`, param, i))
+		args = append(args, value)
+		i++
+	}
+
+	query := fmt.Sprintf(
+		`UPDATE %s SET %s WHERE "%s" = $%d`,
+		table,
+		strings.Join(sets, ", "),
+		identifier,
+		i,
+	)
+
+	args = append(args, id)
+
+	return query, args
+}
+
+func PatchMapUpdates(req any) map[string]any {
+	updates := make(map[string]any)
+
+	v := reflect.ValueOf(req)
+	t := reflect.TypeOf(req)
+
+	if v.Kind() == reflect.Pointer {
+		v = v.Elem()
+		t = t.Elem()
+	}
+
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Field(i)
+		fieldType := t.Field(i)
+
+		if field.Kind() != reflect.Pointer || field.IsNil() {
+			continue
+		}
+
+		name := fieldType.Tag.Get("json")
+
+		if name == "" {
+			name = fieldType.Name
+		}
+
+		// Remove ",omitempty" if present
+		if comma := strings.Index(name, ","); comma != -1 {
+			name = name[:comma]
+		}
+
+		updates[name] = field.Elem().Interface()
+	}
+
+	return updates
 }

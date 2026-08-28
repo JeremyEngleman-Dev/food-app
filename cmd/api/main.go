@@ -12,7 +12,7 @@ import (
 
 	"foodapp/internal/auth"
 	"foodapp/internal/ingredients"
-	"foodapp/internal/sessions"
+	"foodapp/internal/mappings"
 	"foodapp/internal/users"
 )
 
@@ -21,9 +21,16 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Database
+	// Configuration
 	cfg := config.LoadConfig()
 
+	// Tools
+	encryption := security.NewEncryption(cfg.Secrets.EmailEncryptionKey)
+	hash := security.NewHash(cfg.Secrets.EmailHashKey, cfg.Secrets.TokenHashKey)
+	token := security.NewToken(cfg.Secrets.TokenHashKey)
+	userMapping := mappings.NewUserMap(encryption)
+
+	// Database
 	db, err := database.Open(cfg.DBString)
 	if err != nil {
 		log.Fatal(err)
@@ -47,38 +54,26 @@ func main() {
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 
-	// Users
+	// HTTP - Users
 	userRepo := users.NewRepo(db)
-	userService := users.NewService(userRepo, security.SecurityKeys{
-		Encryption: cfg.EmailEncryptionKey,
-		Hash:       cfg.EmailHashKey,
-	})
-	userHandler := users.NewHandler(userService)
-	userModule := users.NewModule(userHandler)
+	userService := users.NewService(userRepo, encryption, hash)
+	userHandler := users.NewHandler(userService, userMapping)
 
-	// Sessions
-	sessionRepo := sessions.Newrepo(db)
-	sessionService := sessions.NewService(sessionRepo, security.SecurityKeys{
-		Encryption: cfg.EmailEncryptionKey,
-		Hash:       cfg.EmailHashKey,
-	}, userRepo)
-	sessionHandler := sessions.NewHandler(sessionService)
-	sessionModule := sessions.NewModule(sessionHandler)
+	// HTTP - Auth
+	authentication := auth.NewMiddleware(token)
+	authRepo := auth.NewRepo(db)
+	authService := auth.NewService(authRepo, hash, userRepo, token)
+	authHandler := auth.NewHandler(authService)
 
-	// Auth
-	authService := auth.NewService(userRepo, sessionRepo)
-	authMW := auth.NewMiddleware(authService)
-
-	// Ingredients
-	ingredientRepo := ingredients.Newrepo(db)
+	// HTTP - Ingredients
+	ingredientRepo := ingredients.NewRepo(db)
 	ingredientService := ingredients.NewService(ingredientRepo)
 	ingredientHandler := ingredients.NewHandler(ingredientService)
-	ingredientModule := ingredients.NewModule(ingredientHandler)
 
-	// Routes
-	userModule.RegisterRoutes(mux, authMW.Authenticate, authMW.Admin)
-	sessionModule.RegisterRoutes(mux)
-	ingredientModule.RegisterRoutes(mux, authMW.Authenticate)
+	// HTTP - Routes
+	userHandler.RegisterRoutes(mux, authentication.Authenticate, authentication.Admin)
+	authHandler.RegisterRoutes(mux, authentication.Authenticate)
+	ingredientHandler.RegisterRoutes(mux, authentication.Authenticate)
 
 	// Server
 	srv := &http.Server{

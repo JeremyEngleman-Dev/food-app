@@ -20,7 +20,7 @@ type repo struct {
 	db *sql.DB
 }
 
-func Newrepo(db *sql.DB) Repository {
+func NewRepo(db *sql.DB) Repository {
 	return &repo{db: db}
 }
 

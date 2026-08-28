@@ -10,10 +10,15 @@ import (
 	"github.com/joho/godotenv"
 )
 
-type Config struct {
-	DBString           string
+type SecretKeys struct {
 	EmailEncryptionKey cipher.Block
 	EmailHashKey       []byte
+	TokenHashKey       []byte
+}
+
+type Config struct {
+	DBString string
+	Secrets  SecretKeys
 }
 
 func LoadConfig() Config {
@@ -50,11 +55,16 @@ func LoadConfig() Config {
 
 	emailHashKey := os.Getenv("EMAIL_HASH_KEY")
 
+	tokenHashKey := os.Getenv("TOKEN_HASH_KEY")
+
 	// Return Config
 	return Config{
-		DBString:           dbString,
-		EmailEncryptionKey: emailEncryptionKey,
-		EmailHashKey:       []byte(emailHashKey),
+		DBString: dbString,
+		Secrets: SecretKeys{
+			EmailEncryptionKey: emailEncryptionKey,
+			EmailHashKey:       []byte(emailHashKey),
+			TokenHashKey:       []byte(tokenHashKey),
+		},
 	}
 }
 
