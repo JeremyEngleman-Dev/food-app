@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	mm "foodapp/internal/mappings"
 	m "foodapp/internal/models"
 	"foodapp/internal/platform/database"
 	"log"
@@ -13,13 +14,29 @@ import (
 )
 
 type Handler struct {
-	service *Service
+	service     *Service
+	userMapping mm.UserMapping
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service *Service, userMapping mm.UserMapping) *Handler {
+	return &Handler{
+		service:     service,
+		userMapping: userMapping,
+	}
 }
 
+func (h *Handler) RegisterRoutes(
+	mux *http.ServeMux,
+	auth func(http.Handler) http.Handler,
+	admin func(http.Handler) http.Handler,
+) {
+	mux.Handle("GET /users/{id}", auth(http.HandlerFunc(h.GetUser)))
+	mux.HandleFunc("POST /users", h.CreateUser)
+	mux.Handle("GET /users", auth(http.HandlerFunc(h.ListUsers)))
+	mux.Handle("DELETE /users/{id}", auth(admin(http.HandlerFunc(h.DeleteUser))))
+}
+
+// Handlers
 func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -46,9 +63,15 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	displayUser, err := h.userMapping.ToDisplayUser(user)
+	if err != nil {
+		WriteJsonReturn(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	if err := json.NewEncoder(w).Encode(user); err != nil {
+	if err := json.NewEncoder(w).Encode(displayUser); err != nil {
 		log.Println("failed to write response:", err)
 	}
 }
@@ -69,8 +92,10 @@ func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	displayUser, err := h.userMapping.ToDisplayUser(user)
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(user)
+	json.NewEncoder(w).Encode(displayUser)
 }
 
 func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
@@ -82,8 +107,18 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var displayUsers []m.DisplayUser
+	for _, user := range users {
+		displayUser, err := h.userMapping.ToDisplayUser(user)
+		if err != nil {
+			WriteJsonReturn(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
+			return
+		}
+		displayUsers = append(displayUsers, displayUser)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(users)
+	json.NewEncoder(w).Encode(displayUsers)
 }
 
 func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {

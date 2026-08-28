@@ -2,38 +2,65 @@
 
 This is something I started to learn more about creating a backend Go API.
 
-Much of the initial focus was setting up user login/logout with sessions.
+Much of the initial focus was setting up user authentication. I just switched from session based auth to JWT.
 
-Things I have considered:
-- I would clearly not allow the willy nilly creation of admin accounts by anyone in a production environment, that would be dumb.
-- Better data validation is certainly needed, among other things.
+---
 
-## Features
+- [Features](#features)
+- [How To Run](#how-to-run)
+    - [Docker](#run-docker)
+    - [Locally](#run-locally)
+- [How To Use](#how-to-use)
+    - [Health](#use-health)
+    - [Users](#use-users)
+    - [Authentication](#use-authentication)
+    - [Ingredients](#use-ingredients)
+
+## Features <a id="features"></a>
 
 - User authentication via sessions
 - Access levels for endpoints
 - Ingredient creation
 
-## How To Run Locally
+## How To Run <a id="how-to-run"></a>
 
-Requirements:
+Options:
 - Docker
-- Docker Compose
+- Locally
 
-Copy `.env.example` and make any desired changes.
-*EMAIL_ENCRYPTION_KEY must be exactly 16, 24, or 32 characters long
+Copy `.env.example` to `.env` and make any desired changes.
 
-To start the application and its database:
-`docker compose up --build`
+NOTE: EMAIL_ENCRYPTION_KEY must be exactly 16, 24, or 32 characters long
+
+### Docker <a id="run-docker"></a>
+
+Ensure that in `.env`, `DB_HOST` is set to "db"
+
+Start the application and its database:
+
+    `docker compose up --build`
 
 The API will be available at `http://localhost:8080`
 
-To stop the application:
-`docker compose down`
+Stop the application:
 
-## How To Use
+    `docker compose down`
 
-### Health
+### Locally <a id="run-locally"></a>
+
+Ensure that in `.env`, `DB_HOST` is set to "localhost"
+
+Start the app by running:
+
+    `go run main.go`
+
+The API will be available at `http://localhost:8080`
+
+Stop the app using `ctrl` + `c`
+
+## How To Use <a id="how-to-use"></a>
+
+### Health <a id="use-health"></a>
 
 >**GET** `/health`
 
@@ -41,7 +68,9 @@ Gets the health of the application.
 
 **Access Level**: none
 
-### Users
+---
+
+### Users <a id="use-users"></a>
 
 >**POST** `/users` 
 
@@ -83,9 +112,11 @@ Deletes the specified user.
 | --- | --- | --- | --- |
 | id | int | yes | ID of the user to delete |
 
-### Login
+---
 
->**POST** `/login`
+### Authentication <a id="use-authentication"></a>
+
+>**POST** `/auth/login`
 
 Logs in the specified user.
 
@@ -96,13 +127,21 @@ Logs in the specified user.
 | email | string | yes | Email of the user to log in |
 | password | string | yes | Password of the user to log in |
 
->**POST** `/logout`
+>**POST** `/auth/logout`
 
 Logs out the specified user.
 
 **Access Level**: user
 
-### Ingredients
+>**POST** `/auth/refresh`
+
+Refreshes the JWT token and refresh token.
+
+**Access Level**: user
+
+---
+
+### Ingredients <a id="use-ingredients"></a>
 
 >**POST** `/ingredients`
 

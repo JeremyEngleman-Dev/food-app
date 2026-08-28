@@ -2,8 +2,9 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"foodapp/internal/platform/config"
@@ -12,31 +13,48 @@ import (
 
 	"foodapp/internal/auth"
 	"foodapp/internal/ingredients"
-	"foodapp/internal/sessions"
+	"foodapp/internal/mappings"
 	"foodapp/internal/users"
 )
 
 func main() {
+	// Logging
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
+
+	slog.SetDefault(logger)
+
 	// Context
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Database
+	// Configuration
 	cfg := config.LoadConfig()
 
+	// Utilities
+	encryption := security.NewEncryption(cfg.Secrets.EmailEncryptionKey)
+	hash := security.NewHash(cfg.Secrets.EmailHashKey, cfg.Secrets.TokenHashKey)
+	token := security.NewToken(cfg.Secrets.TokenHashKey)
+	userMapping := mappings.NewUserMap(encryption)
+
+	// Database
 	db, err := database.Open(cfg.DBString)
 	if err != nil {
-		log.Fatal(err)
+		logger.Error("Failed to load database", "error", err.Error())
+		os.Exit(1)
 	}
 	defer db.Close()
 
 	err = db.Ping()
 	if err != nil {
-		log.Fatal("Database not reachable:", err)
+		logger.Error("Database not reachable", "error", err.Error())
+		os.Exit(1)
 	}
 
 	if err := database.RunMigrations(ctx, db, "internal/platform/database/migrations"); err != nil {
-		log.Fatal(err)
+		logger.Error("Database migration error", "error", err.Error())
+		os.Exit(1)
 	}
 
 	// HTTP
@@ -47,38 +65,26 @@ func main() {
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 
-	// Users
+	// HTTP - Users
 	userRepo := users.NewRepo(db)
-	userService := users.NewService(userRepo, security.SecurityKeys{
-		Encryption: cfg.EmailEncryptionKey,
-		Hash:       cfg.EmailHashKey,
-	})
-	userHandler := users.NewHandler(userService)
-	userModule := users.NewModule(userHandler)
+	userService := users.NewService(userRepo, encryption, hash)
+	userHandler := users.NewHandler(userService, userMapping)
 
-	// Sessions
-	sessionRepo := sessions.Newrepo(db)
-	sessionService := sessions.NewService(sessionRepo, security.SecurityKeys{
-		Encryption: cfg.EmailEncryptionKey,
-		Hash:       cfg.EmailHashKey,
-	}, userRepo)
-	sessionHandler := sessions.NewHandler(sessionService)
-	sessionModule := sessions.NewModule(sessionHandler)
+	// HTTP - Auth
+	authentication := auth.NewMiddleware(token)
+	authRepo := auth.NewRepo(db)
+	authService := auth.NewService(authRepo, hash, userRepo, token)
+	authHandler := auth.NewHandler(authService)
 
-	// Auth
-	authService := auth.NewService(userRepo, sessionRepo)
-	authMW := auth.NewMiddleware(authService)
-
-	// Ingredients
-	ingredientRepo := ingredients.Newrepo(db)
+	// HTTP - Ingredients
+	ingredientRepo := ingredients.NewRepo(db)
 	ingredientService := ingredients.NewService(ingredientRepo)
 	ingredientHandler := ingredients.NewHandler(ingredientService)
-	ingredientModule := ingredients.NewModule(ingredientHandler)
 
-	// Routes
-	userModule.RegisterRoutes(mux, authMW.Authenticate, authMW.Admin)
-	sessionModule.RegisterRoutes(mux)
-	ingredientModule.RegisterRoutes(mux, authMW.Authenticate)
+	// HTTP - Routes
+	userHandler.RegisterRoutes(mux, authentication.Authenticate, authentication.Admin)
+	authHandler.RegisterRoutes(mux, authentication.Authenticate)
+	ingredientHandler.RegisterRoutes(mux, authentication.Authenticate)
 
 	// Server
 	srv := &http.Server{
@@ -89,6 +95,9 @@ func main() {
 		IdleTimeout:  120 * time.Second,
 	}
 
-	log.Printf("Server starting on %s ...", srv.Addr)
-	log.Fatal(srv.ListenAndServe())
+	logger.Info("Server starting", "address", srv.Addr)
+	if err := srv.ListenAndServe(); err != nil {
+		logger.Error("server stopped", "err", err)
+		os.Exit(1)
+	}
 }

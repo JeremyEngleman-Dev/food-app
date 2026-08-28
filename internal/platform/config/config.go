@@ -4,21 +4,28 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 
 	"github.com/joho/godotenv"
 )
 
-type Config struct {
-	DBString           string
+type SecretKeys struct {
 	EmailEncryptionKey cipher.Block
 	EmailHashKey       []byte
+	TokenHashKey       []byte
+}
+
+type Config struct {
+	DBString string
+	Secrets  SecretKeys
 }
 
 func LoadConfig() Config {
+	logger := slog.Default()
+
 	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, using environment variables")
+		logger.Info("No .env file found, using environment variables")
 	}
 
 	// Database
@@ -41,20 +48,27 @@ func LoadConfig() Config {
 	// Keys
 	rawEmailEncryptionKey := os.Getenv("EMAIL_ENCRYPTION_KEY")
 	if rawEmailEncryptionKey == "" {
-		log.Fatal("Missing value: EMAIL_ENCRYPTION_KEY")
+		logger.Error("Missing value: EMAIL_ENCRYPTION_KEY")
+		os.Exit(1)
 	}
 	emailEncryptionKey, err := GetCipher(rawEmailEncryptionKey)
 	if err != nil {
-		log.Fatal(err)
+		logger.Error("Failed to get cipher of email encryption key", "error", err.Error())
+		os.Exit(1)
 	}
 
 	emailHashKey := os.Getenv("EMAIL_HASH_KEY")
 
+	tokenHashKey := os.Getenv("TOKEN_HASH_KEY")
+
 	// Return Config
 	return Config{
-		DBString:           dbString,
-		EmailEncryptionKey: emailEncryptionKey,
-		EmailHashKey:       []byte(emailHashKey),
+		DBString: dbString,
+		Secrets: SecretKeys{
+			EmailEncryptionKey: emailEncryptionKey,
+			EmailHashKey:       []byte(emailHashKey),
+			TokenHashKey:       []byte(tokenHashKey),
+		},
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"foodapp/internal/auth"
 	m "foodapp/internal/models"
 	"foodapp/internal/platform/database"
 	"log"
@@ -20,10 +21,20 @@ func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
+func (h *Handler) RegisterRoutes(
+	mux *http.ServeMux,
+	auth func(http.Handler) http.Handler,
+) {
+	mux.Handle("POST /ingredients", auth(http.HandlerFunc(h.CreateIngredient)))
+	mux.Handle("GET /ingredients", auth(http.HandlerFunc(h.ListIngredients)))
+	mux.Handle("GET /ingredients/{id}", auth(http.HandlerFunc(h.GetIngredient)))
+	mux.Handle("DELETE /ingredients/", auth(http.HandlerFunc(h.DeleteIngredient)))
+}
+
 // Handlers
 func (h *Handler) CreateIngredient(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	userCtx, ok := r.Context().Value("userCtx").(m.UserContext)
+	userCtx, ok := auth.GetUserContext(ctx)
 	if !ok {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
