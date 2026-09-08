@@ -11,6 +11,13 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+const (
+	AccessTokenTTL  = 15 * time.Minute    // 15 minutes
+	RefreshTokenTTL = 30 * 24 * time.Hour // 30 days
+	HttpOnly        = true
+	SecureOverHTTPS = true
+)
+
 type Token interface {
 	CreateJwtToken(user m.User) (string, error)
 	CreateRefreshToken(n int) ([]byte, error)
@@ -36,7 +43,7 @@ func (t *token) CreateJwtToken(user m.User) (string, error) {
 		UserID: user.Id,
 		Role:   user.Role,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(15 * time.Minute)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(AccessTokenTTL)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}

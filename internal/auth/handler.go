@@ -7,6 +7,7 @@ import (
 	"fmt"
 	m "foodapp/internal/models"
 	"foodapp/internal/platform/database"
+	"foodapp/internal/platform/security"
 	"log"
 	"net/http"
 )
@@ -53,18 +54,18 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		Name:     "access_token",
 		Value:    tokens.Token,
 		Path:     "/",
-		HttpOnly: true,
-		Secure:   false,
-		MaxAge:   86400,
+		HttpOnly: security.HttpOnly,
+		Secure:   security.SecureOverHTTPS,
+		MaxAge:   int(security.AccessTokenTTL),
 	}
 
 	refreshCookie := &http.Cookie{
 		Name:     "refresh_token",
 		Value:    tokens.Refresh,
 		Path:     "/",
-		HttpOnly: true,
-		Secure:   false,
-		MaxAge:   3600,
+		HttpOnly: security.HttpOnly,
+		Secure:   security.SecureOverHTTPS,
+		MaxAge:   int(security.RefreshTokenTTL),
 	}
 
 	http.SetCookie(w, tokenCookie)
@@ -90,8 +91,8 @@ func (h *Handler) LogoutUser(w http.ResponseWriter, r *http.Request) {
 		Name:     "access_token",
 		Value:    "",
 		Path:     "/",
-		HttpOnly: true,
-		Secure:   false,
+		HttpOnly: security.HttpOnly,
+		Secure:   security.SecureOverHTTPS,
 		MaxAge:   -1,
 	}
 
@@ -99,8 +100,8 @@ func (h *Handler) LogoutUser(w http.ResponseWriter, r *http.Request) {
 		Name:     "refresh_token",
 		Value:    "",
 		Path:     "/",
-		HttpOnly: true,
-		Secure:   false,
+		HttpOnly: security.HttpOnly,
+		Secure:   security.SecureOverHTTPS,
 		MaxAge:   -1,
 	}
 
@@ -128,18 +129,18 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		Name:     "access_token",
 		Value:    tokens.Token,
 		Path:     "/",
-		HttpOnly: true,
-		Secure:   false,
-		MaxAge:   86400,
+		HttpOnly: security.HttpOnly,
+		Secure:   security.SecureOverHTTPS,
+		MaxAge:   int(security.AccessTokenTTL),
 	}
 
 	refreshCookie := &http.Cookie{
 		Name:     "refresh_token",
 		Value:    tokens.Refresh,
 		Path:     "/",
-		HttpOnly: true,
-		Secure:   false,
-		MaxAge:   3600,
+		HttpOnly: security.HttpOnly,
+		Secure:   security.SecureOverHTTPS,
+		MaxAge:   int(security.RefreshTokenTTL),
 	}
 
 	http.SetCookie(w, tokenCookie)

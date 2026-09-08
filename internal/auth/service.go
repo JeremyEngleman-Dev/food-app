@@ -69,7 +69,7 @@ func (s *Service) LoginUser(ctx context.Context, login m.LoginInfo) (m.ResponseT
 	refreshHashed := s.hash.HashRefreshToken(refresh)
 
 	now := time.Now().UTC()
-	expiresAt := now.AddDate(0, 1, 0)
+	expiresAt := now.Add(security.RefreshTokenTTL)
 
 	if refreshTokenExist {
 		updatedToken := m.UpdateRefreshToken{
@@ -146,7 +146,7 @@ func (s *Service) RefreshToken(ctx context.Context, refreshTokenEncoded string) 
 	refreshEncoded := base64.StdEncoding.EncodeToString(refresh)
 	refreshHashed := s.hash.HashRefreshToken(refresh)
 
-	newExpiration := time.Now().UTC().AddDate(0, 1, 0)
+	newExpiration := time.Now().UTC().Add(security.RefreshTokenTTL)
 
 	updateRefreshToken := m.UpdateRefreshToken{
 		RefreshTokenHash: &refreshHashed,

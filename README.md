@@ -9,7 +9,6 @@ Much of the initial focus was setting up user authentication. I just switched fr
 - [Features](#features)
 - [How To Run](#how-to-run)
     - [Docker](#run-docker)
-    - [Locally](#run-locally)
 - [How To Use](#how-to-use)
     - [Health](#use-health)
     - [Users](#use-users)
@@ -18,21 +17,17 @@ Much of the initial focus was setting up user authentication. I just switched fr
 
 ## Features <a id="features"></a>
 
-- User authentication via sessions
+- User authentication via JWT
 - Access levels for endpoints
 - Ingredient creation
 
 ## How To Run <a id="how-to-run"></a>
 
-Options:
-- Docker
-- Locally
+### Docker <a id="run-docker"></a>
 
 Copy `.env.example` to `.env` and make any desired changes.
 
-NOTE: EMAIL_ENCRYPTION_KEY must be exactly 16, 24, or 32 characters long
-
-### Docker <a id="run-docker"></a>
+Note: EMAIL_ENCRYPTION_KEY must be exactly 16, 24, or 32 characters long
 
 Ensure that in `.env`, `DB_HOST` is set to "db"
 
@@ -45,18 +40,6 @@ The API will be available at `http://localhost:8080`
 Stop the application:
 
     `docker compose down`
-
-### Locally <a id="run-locally"></a>
-
-Ensure that in `.env`, `DB_HOST` is set to "localhost"
-
-Start the app by running:
-
-    `go run main.go`
-
-The API will be available at `http://localhost:8080`
-
-Stop the app using `ctrl` + `c`
 
 ## How To Use <a id="how-to-use"></a>
 
