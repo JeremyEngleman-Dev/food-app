@@ -7,6 +7,7 @@ import (
 	mm "foodapp/internal/mappings"
 	m "foodapp/internal/models"
 	"foodapp/internal/platform/database"
+	"foodapp/internal/platform/utils"
 	"log"
 	"net/http"
 	"strconv"
@@ -49,11 +50,11 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	var request m.CreateUser
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		WriteJsonReturn(w, http.StatusBadRequest, map[string]string{"error": "Invalid JSON"})
+		utils.HttpJsonResponse(w, http.StatusBadRequest, map[string]string{"error": "Invalid JSON"})
 		return
 	}
 	if request.Email == "" || request.Password == "" || !validRoles[request.Role] {
-		WriteJsonReturn(w, http.StatusBadRequest, map[string]string{"error": "Invalid JSON"})
+		utils.HttpJsonResponse(w, http.StatusBadRequest, map[string]string{"error": "Invalid JSON"})
 		return
 	}
 
@@ -65,7 +66,7 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	displayUser, err := h.userMapping.ToDisplayUser(user)
 	if err != nil {
-		WriteJsonReturn(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
+		utils.HttpJsonResponse(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
 		return
 	}
 
@@ -82,7 +83,7 @@ func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/users/")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		WriteJsonReturn(w, http.StatusNotFound, map[string]string{"error": "Invalid id"})
+		utils.HttpJsonResponse(w, http.StatusNotFound, map[string]string{"error": "Invalid id"})
 		return
 	}
 
@@ -111,7 +112,7 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	for _, user := range users {
 		displayUser, err := h.userMapping.ToDisplayUser(user)
 		if err != nil {
-			WriteJsonReturn(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
+			utils.HttpJsonResponse(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
 			return
 		}
 		displayUsers = append(displayUsers, displayUser)
@@ -127,7 +128,7 @@ func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/users/")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		WriteJsonReturn(w, http.StatusNotFound, map[string]string{"error": "Invalid id"})
+		utils.HttpJsonResponse(w, http.StatusNotFound, map[string]string{"error": "Invalid id"})
 		return
 	}
 
@@ -141,39 +142,31 @@ func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 }
 
 // Error Handling
-func WriteJsonReturn(w http.ResponseWriter, status int, data any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		log.Println("failed to write response:", err)
-	}
-}
-
 func ParseError(w http.ResponseWriter, err error) {
 	if errors.Is(err, context.Canceled) {
 		return
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
-		WriteJsonReturn(w, http.StatusGatewayTimeout, map[string]string{"error": "Gateway timeout"})
+		utils.HttpJsonResponse(w, http.StatusGatewayTimeout, map[string]string{"error": "Gateway timeout"})
 	}
 
 	var appErr *database.AppError
 	if errors.As(err, &appErr) {
 		switch appErr.Type {
 		case database.ErrTypeNotFound:
-			WriteJsonReturn(w, http.StatusNotFound, map[string]string{"error": "User not found"})
+			utils.HttpJsonResponse(w, http.StatusNotFound, map[string]string{"error": "User not found"})
 			return
 		case database.ErrTypeConflict:
-			WriteJsonReturn(w, http.StatusConflict, map[string]string{"error": "User already exist"})
+			utils.HttpJsonResponse(w, http.StatusConflict, map[string]string{"error": "User already exist"})
 			return
 		case database.ErrTypeFailedCreation:
-			WriteJsonReturn(w, http.StatusInternalServerError, map[string]string{"error": "Failed to create user"})
+			utils.HttpJsonResponse(w, http.StatusInternalServerError, map[string]string{"error": "Failed to create user"})
 			return
 		default:
-			WriteJsonReturn(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
+			utils.HttpJsonResponse(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
 			return
 		}
 	}
 
-	WriteJsonReturn(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
+	utils.HttpJsonResponse(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
 }

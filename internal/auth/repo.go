@@ -46,7 +46,7 @@ func (r *repo) CreateRefreshToken(ctx context.Context, token m.RefreshToken) err
 		token.ExpiresAt,
 		token.RevokedAt,
 	)
-	fmt.Println(err)
+
 	if err != nil {
 		return database.DBError(err)
 	}

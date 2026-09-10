@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"foodapp/internal/auth"
+	"foodapp/internal/logging"
 	m "foodapp/internal/models"
 	"foodapp/internal/platform/database"
-	"log"
+	"foodapp/internal/platform/utils"
 	"net/http"
 	"strconv"
 	"strings"
@@ -34,21 +34,24 @@ func (h *Handler) RegisterRoutes(
 // Handlers
 func (h *Handler) CreateIngredient(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	userCtx, ok := auth.GetUserContext(ctx)
-	if !ok {
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+
+	var userCtx m.UserContext
+	if rw, ok := w.(*logging.ResponseWriter); !ok {
+		utils.HttpJsonResponse(w, http.StatusUnauthorized, map[string]string{"error": "Unauthorized"})
 		return
+	} else {
+		userCtx = rw.UserCtx
 	}
 
 	defer r.Body.Close()
 
 	var request m.CreateIngredient
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		WriteJsonReturn(w, http.StatusBadRequest, map[string]string{"error": "Invalid JSON"})
+		utils.HttpJsonResponse(w, http.StatusBadRequest, map[string]string{"error": "Invalid JSON"})
 		return
 	}
 	if request.Name == "" || request.Description == "" {
-		WriteJsonReturn(w, http.StatusBadRequest, map[string]string{"error": "Invalid JSON"})
+		utils.HttpJsonResponse(w, http.StatusBadRequest, map[string]string{"error": "Invalid JSON"})
 		return
 	}
 
@@ -71,7 +74,7 @@ func (h *Handler) GetIngredient(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/ingredients/")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		WriteJsonReturn(w, http.StatusNotFound, map[string]string{"error": "Invalid id"})
+		utils.HttpJsonResponse(w, http.StatusNotFound, map[string]string{"error": "Invalid id"})
 		return
 	}
 
@@ -104,7 +107,7 @@ func (h *Handler) DeleteIngredient(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/ingredients/")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		WriteJsonReturn(w, http.StatusNotFound, map[string]string{"error": "Invalid id"})
+		utils.HttpJsonResponse(w, http.StatusNotFound, map[string]string{"error": "Invalid id"})
 		return
 	}
 
@@ -118,39 +121,31 @@ func (h *Handler) DeleteIngredient(w http.ResponseWriter, r *http.Request) {
 }
 
 // Error Handling
-func WriteJsonReturn(w http.ResponseWriter, status int, data any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		log.Println("failed to write response:", err)
-	}
-}
-
 func ParseError(w http.ResponseWriter, err error) {
 	if errors.Is(err, context.Canceled) {
 		return
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
-		WriteJsonReturn(w, http.StatusGatewayTimeout, map[string]string{"error": "Gateway timeout"})
+		utils.HttpJsonResponse(w, http.StatusGatewayTimeout, map[string]string{"error": "Gateway timeout"})
 	}
 
 	var appErr *database.AppError
 	if errors.As(err, &appErr) {
 		switch appErr.Type {
 		case database.ErrTypeNotFound:
-			WriteJsonReturn(w, http.StatusNotFound, map[string]string{"error": "Ingredient not found"})
+			utils.HttpJsonResponse(w, http.StatusNotFound, map[string]string{"error": "Ingredient not found"})
 			return
 		case database.ErrTypeConflict:
-			WriteJsonReturn(w, http.StatusConflict, map[string]string{"error": "Ingredient already exist"})
+			utils.HttpJsonResponse(w, http.StatusConflict, map[string]string{"error": "Ingredient already exist"})
 			return
 		case database.ErrTypeFailedCreation:
-			WriteJsonReturn(w, http.StatusInternalServerError, map[string]string{"error": "Failed to create Ingredient"})
+			utils.HttpJsonResponse(w, http.StatusInternalServerError, map[string]string{"error": "Failed to create Ingredient"})
 			return
 		default:
-			WriteJsonReturn(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
+			utils.HttpJsonResponse(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
 			return
 		}
 	}
 
-	WriteJsonReturn(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
+	utils.HttpJsonResponse(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
 }

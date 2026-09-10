@@ -16,6 +16,12 @@ func Open(dbURL string) (*sql.DB, error) {
 		return &sql.DB{}, err
 	}
 
+	err = db.Ping()
+	if err != nil {
+		db.Close()
+		return nil, err
+	}
+
 	return db, err
 }
 
