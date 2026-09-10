@@ -9,11 +9,11 @@ type contextKey struct{}
 
 var UserContextKey contextKey
 
-func AddUserContext(ctx context.Context, user m.UserContext) context.Context {
+func AddUserContext(ctx context.Context, user *m.UserContext) context.Context {
 	return context.WithValue(ctx, UserContextKey, user)
 }
 
-func GetUserContext(ctx context.Context) (m.UserContext, bool) {
-	userCtx, ok := ctx.Value(UserContextKey).(m.UserContext)
+func GetUserContext(ctx context.Context) (*m.UserContext, bool) {
+	userCtx, ok := ctx.Value(UserContextKey).(*m.UserContext)
 	return userCtx, ok
 }

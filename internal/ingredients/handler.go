@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"foodapp/internal/auth"
+	"foodapp/internal/logging"
 	m "foodapp/internal/models"
 	"foodapp/internal/platform/database"
 	"log"
@@ -34,10 +34,13 @@ func (h *Handler) RegisterRoutes(
 // Handlers
 func (h *Handler) CreateIngredient(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	userCtx, ok := auth.GetUserContext(ctx)
-	if !ok {
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+
+	var userCtx m.UserContext
+	if rw, ok := w.(*logging.ResponseWriter); !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
+	} else {
+		userCtx = rw.UserCtx
 	}
 
 	defer r.Body.Close()

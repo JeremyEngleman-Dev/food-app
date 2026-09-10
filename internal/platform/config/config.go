@@ -72,11 +72,12 @@ func LoadConfig() Config {
 	}
 }
 
+// GetCipher gets the cipher.Block from a provided encryption key 'data'
 func GetCipher(data string) (cipher.Block, error) {
 	dataByte := []byte(data)
 
 	if len(dataByte) != 16 && len(dataByte) != 24 && len(dataByte) != 32 {
-		return nil, fmt.Errorf("Invalid key size: %d", len(dataByte))
+		return nil, fmt.Errorf("Invalid key size: %d; valid byte sizes are 16, 24, 32", len(dataByte))
 	}
 
 	block, err := aes.NewCipher([]byte(data))

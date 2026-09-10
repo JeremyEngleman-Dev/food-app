@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"foodapp/internal/logging"
 	m "foodapp/internal/models"
 	"foodapp/internal/platform/database"
 	"foodapp/internal/platform/security"
@@ -50,6 +51,14 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var finalWriter http.ResponseWriter = w
+	fmt.Println("OUTSIDE")
+	if rw, ok := w.(*logging.ResponseWriter); ok {
+		fmt.Println("OUTSIDE")
+		rw.UserCtx = tokens.UserCtx
+		finalWriter = rw
+	}
+
 	tokenCookie := &http.Cookie{
 		Name:     "access_token",
 		Value:    tokens.Token,
@@ -70,15 +79,18 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 
 	http.SetCookie(w, tokenCookie)
 	http.SetCookie(w, refreshCookie)
-	w.WriteHeader(http.StatusOK)
+	finalWriter.WriteHeader(http.StatusOK)
 }
 
 func (h *Handler) LogoutUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	userCtx, ok := GetUserContext(ctx)
-	if !ok {
+
+	var userCtx m.UserContext
+	if rw, ok := w.(*logging.ResponseWriter); !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
+	} else {
+		userCtx = rw.UserCtx
 	}
 
 	err := h.service.LogoutUser(ctx, userCtx.UserId)
@@ -125,6 +137,13 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var finalWriter http.ResponseWriter = w
+
+	if rw, ok := w.(*logging.ResponseWriter); ok {
+		rw.UserCtx = tokens.UserCtx
+		finalWriter = rw
+	}
+
 	tokenCookie := &http.Cookie{
 		Name:     "access_token",
 		Value:    tokens.Token,
@@ -145,7 +164,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	http.SetCookie(w, tokenCookie)
 	http.SetCookie(w, refreshCookie)
-	w.WriteHeader(http.StatusOK)
+	finalWriter.WriteHeader(http.StatusOK)
 }
 
 // Helper Functions

@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"foodapp/internal/logging"
 	"foodapp/internal/platform/config"
 	"foodapp/internal/platform/database"
 	"foodapp/internal/platform/security"
@@ -46,12 +47,6 @@ func main() {
 	}
 	defer db.Close()
 
-	err = db.Ping()
-	if err != nil {
-		logger.Error("Database not reachable", "error", err.Error())
-		os.Exit(1)
-	}
-
 	if err := database.RunMigrations(ctx, db, "internal/platform/database/migrations"); err != nil {
 		logger.Error("Database migration error", "error", err.Error())
 		os.Exit(1)
@@ -87,9 +82,11 @@ func main() {
 	ingredientHandler.RegisterRoutes(mux, authentication.Authenticate)
 
 	// Server
+	serverHandler := logging.Log(logger)(mux)
+
 	srv := &http.Server{
 		Addr:         ":8080",
-		Handler:      mux,
+		Handler:      serverHandler,
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,

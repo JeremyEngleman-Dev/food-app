@@ -23,6 +23,7 @@ type Claims struct {
 type ResponseTokens struct {
 	Token   string
 	Refresh string
+	UserCtx UserContext
 }
 
 type UpdateRefreshToken struct {

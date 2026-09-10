@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"foodapp/internal/logging"
 	m "foodapp/internal/models"
 	"foodapp/internal/platform/security"
 
@@ -21,7 +22,7 @@ type middleware struct {
 	token security.Token
 }
 
-func NewMiddleware(token security.Token) *middleware {
+func NewMiddleware(token security.Token) Middleware {
 	return &middleware{
 		token: token,
 	}
@@ -59,9 +60,14 @@ func (mw *middleware) Authenticate(next http.Handler) http.Handler {
 			Role:   claims.Role,
 		}
 
-		ctx := AddUserContext(r.Context(), userCtx)
+		if rw, ok := w.(*logging.ResponseWriter); ok {
+			rw.UserCtx = userCtx
 
-		next.ServeHTTP(w, r.WithContext(ctx))
+			next.ServeHTTP(rw, r)
+			return
+		}
+
+		next.ServeHTTP(w, r)
 	})
 }
 

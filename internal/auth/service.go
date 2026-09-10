@@ -99,9 +99,15 @@ func (s *Service) LoginUser(ctx context.Context, login m.LoginInfo) (m.ResponseT
 		}
 	}
 
+	userCtx := m.UserContext{
+		UserId: user.Id,
+		Role:   user.Role,
+	}
+
 	return m.ResponseTokens{
 		Token:   token,
 		Refresh: refreshEncoded,
+		UserCtx: userCtx,
 	}, nil
 }
 
@@ -133,6 +139,11 @@ func (s *Service) RefreshToken(ctx context.Context, refreshTokenEncoded string) 
 		return m.ResponseTokens{}, err
 	}
 
+	userCtx := m.UserContext{
+		UserId: user.Id,
+		Role:   user.Role,
+	}
+
 	newToken, err := s.token.CreateJwtToken(user)
 	if err != nil {
 		return m.ResponseTokens{}, err
@@ -162,5 +173,6 @@ func (s *Service) RefreshToken(ctx context.Context, refreshTokenEncoded string) 
 	return m.ResponseTokens{
 		Token:   newToken,
 		Refresh: refreshEncoded,
+		UserCtx: userCtx,
 	}, nil
 }
