@@ -4,6 +4,8 @@ This is something I started to learn more about creating a backend Go API.
 
 Much of the initial focus was setting up user authentication. I just switched from session based auth to JWT.
 
+I added a unit test for a users service function (more to come), which turned out to be somewhat similar to my experience with xUnit in C# with setting up mock instances of dependencies. It was good that I spent time researching ways of organizing a Go application, as the method I chose appears to be a good arrangement for testing. 
+
 ---
 
 - [Features](#features)
@@ -20,6 +22,7 @@ Much of the initial focus was setting up user authentication. I just switched fr
 - User authentication via JWT
 - Access levels for endpoints
 - Ingredient creation
+- Testing
 
 ## How To Run <a id="how-to-run"></a>
 
@@ -40,6 +43,16 @@ The API will be available at `http://localhost:8080`
 Stop the application:
 
     `docker compose down`
+
+## How To Test
+
+### Targeted Testing
+
+Navigate to a specific folder with a `*_test.go` naming convention, then run `go test` (or `go test -v` for more detail on failures)
+
+### Recursive Testing
+
+At the project root, run `go test ./...` (or `go test -v ./...` for more detail on failures)
 
 ## How To Use <a id="how-to-use"></a>
 
