@@ -2,9 +2,7 @@ package users
 
 import (
 	"context"
-	"errors"
 	m "foodapp/internal/models"
-	"foodapp/internal/platform/database"
 	"foodapp/internal/platform/security"
 )
 
@@ -46,12 +44,6 @@ func (s *Service) CreateUser(ctx context.Context, u m.CreateUser) (m.User, error
 
 	user, err := s.repo.CreateUser(ctx, userCreation)
 	if err != nil {
-		var appErr *database.AppError
-		if errors.As(err, &appErr) {
-			if appErr.Type == database.ErrTypeNotFound {
-				return m.User{}, &database.AppError{Type: database.ErrTypeFailedCreation, Err: err}
-			}
-		}
 		return m.User{}, err
 	}
 

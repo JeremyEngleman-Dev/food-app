@@ -159,9 +159,6 @@ func ParseError(w http.ResponseWriter, err error) {
 		case database.ErrTypeConflict:
 			utils.HttpJsonResponse(w, http.StatusConflict, map[string]string{"error": "User already exist"})
 			return
-		case database.ErrTypeFailedCreation:
-			utils.HttpJsonResponse(w, http.StatusInternalServerError, map[string]string{"error": "Failed to create user"})
-			return
 		default:
 			utils.HttpJsonResponse(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
 			return
